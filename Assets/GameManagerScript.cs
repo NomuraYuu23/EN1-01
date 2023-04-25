@@ -1,79 +1,106 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Numerics;
 using UnityEngine;
 
 public class GameManagerScript : MonoBehaviour
 {
+
+    public GameObject playerPrefab;
+    public GameObject boxPrefab;
     //配列の宣言
-    int[] map;
+    int[,] map;//変更。二次元配列で宣言
+    GameObject[,] field;//ゲーム管理用の配列
 
-    //配列の表示
-    void PrintArray()
+//インデックスの取得
+Vector2Int GetPlayerIndex()
+{
+    //要素数はmap.Lengthで取得
+    for (int y = 0; y < map.GetLength(0); y++)
     {
-        //追加。文字列の宣言と初期化
-        string debugText = "";
-        for (int i = 0; i < map.Length; i++)
+        for (int x = 0; x < map.GetLength(1); x++)
         {
-            //変更。文字列に結合していく
-            debugText += map[i].ToString() + ",";
+                if (field[y,x] == null) {  continue; }
+                if (field[y,x].tag == "Player") { return new Vector2Int(x,y); }
         }
-        //結合した文字列を出力
-        Debug.Log(debugText);
     }
+    return new Vector2Int(-1, -1);
+}
 
-    //インデックスの取得
-    int GetPlayerIndex()
-    {
-        //要素数はmap.Lengthで取得
-        for (int i = 0; i < map.Length; i++)
-        {
-            if (map[i] == 1)
-            {
-                return i;
-            }
-        }
-        return -1;
-    }
 
-    //移動
-    bool MoveNumber(int number, int moveFrom, int moveTo)
-    {
-        //移動先が範囲外なら移動不可
-        if(moveTo<0 || moveTo >= map.Length)
+
+//移動
+bool MoveNumber(int tag, Vector2Int moveFrom, Vector2Int moveTo)
+{
+        //縦軸横軸の配列外参照をしてないか
+        if (moveTo.y < 0 || moveTo.y >= field.GetLength(0)) { return false; }
+        if (moveTo.x < 0 || moveTo.x >= field.GetLength(1)) { return false; }
+
+        //Boxタグを持っていたら再帰処理
+        if (field[moveTo.y, moveTo.x] != null && field[moveTo.y, moveTo.x].tag == "Box")
         {
-            //動けない条件を先に書き、リターンする、早期リターン
-            return false;
-        }
-        //移動先に2(箱)がいたら
-        if (map[moveTo] == 2)
-        {
-            //どの方向へ移動するかを算出
-            int velocity = moveTo - moveFrom;
-            /*
-             プレイヤーの移動先から、さらに先へ2(箱)を移動させる。
-            箱の移動処理。MoveNumberメソッド内でMoveNumberメソッドを
-            呼び、根拠が再帰している。移動不可をboolで記録
-             */
-            bool succes = MoveNumber(2, moveTo, moveTo + velocity);
-            //もし箱が移動失敗したら、プレイヤーの移動も失敗
-            if(!succes)
-            {
-                return false;
-            }
+            Vector2Int velocity = moveTo - moveFrom;
+            bool success = MoveNumber(tag, moveTo, moveTo + velocity);
+            if(!success) { return false; }
         }
 
-        //移動処理
-        map[moveTo] = number;
-        map[moveFrom] = 0;
+        //GameObjectの座標(position)を移動させてからインデックスの入れ替え
+        field[moveFrom.y, moveFrom.x].transform.position =
+            new UnityEngine.Vector3(moveTo.x, field.GetLength(0) - moveTo.y, 0);
+        field[moveTo.y, moveTo.x] = field[moveFrom.y, moveFrom.x];
+        field[moveFrom.y, moveFrom.x] = null;
+
+
+
+
         return true;
     }
 
     // Start is called before the first frame update
     void Start()
     {
-        //配列の実態の作成と初期化
-        map = new int[] { 0, 0, 0, 1, 0, 2, 0, 0, 0 };
-        PrintArray();
+
+    //配列の実態の作成と初期化
+    map = new int[,]//変更。わかりやすく3x5サイズ
+        {
+            {0,0,0,0,0 },
+            {0,0,1,2,0 },
+            {0,2,0,2,0 },
+        };
+        field = new GameObject
+        [
+            map.GetLength(0),
+            map.GetLength(1)
+        ];
+        string debugText = "";
+        //変更。二重for文で二次元配列の情報を出力
+        for(int y = 0; y < map.GetLength(0); y++)
+        {
+            for(int x = 0;x < map.GetLength(1); x++)
+            {
+                debugText += map[y, x].ToString() + ",";
+                if (map[y,x] == 1)
+                {
+                    //追加
+                    field[y,x] = Instantiate(
+                        playerPrefab,
+                        new UnityEngine.Vector3(x, map.GetLength(0) - y, 0),
+                        UnityEngine.Quaternion.identity
+                        );
+                }
+                else if(map[y, x] == 2)
+                {
+                    //追加
+                    field[y, x] = Instantiate(
+                        boxPrefab,
+                        new UnityEngine.Vector3(x, map.GetLength(0) - y, 0),
+                        UnityEngine.Quaternion.identity
+                        );
+                }
+            }
+            debugText += "\n";//改行
+        }
+        Debug.Log(debugText);
     }
 
     // Update is called once per frame
@@ -82,21 +109,46 @@ public class GameManagerScript : MonoBehaviour
         //Dキーを押した瞬間
         if(Input.GetKeyDown(KeyCode.D)) {
             //見つからなかった時のために-1で初期化
-            int playerIndex = GetPlayerIndex();
+            Vector2Int playerIndex = GetPlayerIndex();
+            Vector2Int playerIndexNext = GetPlayerIndex();
+            playerIndexNext.x += 1;
             //移動関数
-            MoveNumber(1, playerIndex, playerIndex + 1);
-            PrintArray();
-
+            MoveNumber(1, playerIndex, playerIndexNext);
         }
+
         //Aキーを押した瞬間
         if (Input.GetKeyDown(KeyCode.A))
         {
             //見つからなかった時のために-1で初期化
-            int playerIndex = GetPlayerIndex();
+            Vector2Int playerIndex = GetPlayerIndex();
+            Vector2Int playerIndexNext = GetPlayerIndex();
+            playerIndexNext.x -= 1;
             //移動関数
-            MoveNumber(1, playerIndex, playerIndex - 1);
-            PrintArray();
-
+            MoveNumber(1, playerIndex, playerIndexNext);
         }
+
+        //Wキーを押した瞬間
+        if (Input.GetKeyDown(KeyCode.W))
+        {
+            //見つからなかった時のために-1で初期化
+            Vector2Int playerIndex = GetPlayerIndex();
+            Vector2Int playerIndexNext = GetPlayerIndex();
+            playerIndexNext.y -= 1;
+            //移動関数
+            MoveNumber(1, playerIndex, playerIndexNext);
+        }
+
+        //Sキーを押した瞬間
+        if (Input.GetKeyDown(KeyCode.S))
+        {
+            //見つからなかった時のために-1で初期化
+            Vector2Int playerIndex = GetPlayerIndex();
+            Vector2Int playerIndexNext = GetPlayerIndex();
+            playerIndexNext.y += 1;
+            //移動関数
+            MoveNumber(1, playerIndex, playerIndexNext);
+        }
+
     }
+ 
 }
