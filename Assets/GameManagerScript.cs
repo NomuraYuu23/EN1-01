@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using UnityEditor.Compilation;
 using UnityEngine;
 
 public class GameManagerScript : MonoBehaviour
@@ -8,30 +9,34 @@ public class GameManagerScript : MonoBehaviour
 
     public GameObject playerPrefab;
     public GameObject boxPrefab;
+    public GameObject goalPrefab;
+
+    public GameObject clearText;
+
     //配列の宣言
     int[,] map;//変更。二次元配列で宣言
     GameObject[,] field;//ゲーム管理用の配列
 
-//インデックスの取得
-Vector2Int GetPlayerIndex()
-{
-    //要素数はmap.Lengthで取得
-    for (int y = 0; y < map.GetLength(0); y++)
+    //インデックスの取得
+    Vector2Int GetPlayerIndex()
     {
-        for (int x = 0; x < map.GetLength(1); x++)
+        //要素数はmap.Lengthで取得
+        for (int y = 0; y < map.GetLength(0); y++)
         {
-                if (field[y,x] == null) {  continue; }
-                if (field[y,x].tag == "Player") { return new Vector2Int(x,y); }
+            for (int x = 0; x < map.GetLength(1); x++)
+            {
+                    if (field[y,x] == null) {  continue; }
+                    if (field[y,x].tag == "Player") { return new Vector2Int(x,y); }
+            }
         }
+        return new Vector2Int(-1, -1);
     }
-    return new Vector2Int(-1, -1);
-}
 
 
 
-//移動
-bool MoveNumber(int tag, Vector2Int moveFrom, Vector2Int moveTo)
-{
+    //移動
+    bool MoveNumber(int tag, Vector2Int moveFrom, Vector2Int moveTo)
+    {
         //縦軸横軸の配列外参照をしてないか
         if (moveTo.y < 0 || moveTo.y >= field.GetLength(0)) { return false; }
         if (moveTo.x < 0 || moveTo.x >= field.GetLength(1)) { return false; }
@@ -56,6 +61,41 @@ bool MoveNumber(int tag, Vector2Int moveFrom, Vector2Int moveTo)
         return true;
     }
 
+    //クリア判定
+    bool IsCleard()
+    {
+        //Vector2Int型の可変長配列の作成
+        List<Vector2Int> goals = new List<Vector2Int>();
+
+        for(int y = 0; y < map.GetLength(0); y++)
+        {
+            for(int x = 0; x < map.GetLength(1); x++)
+            {
+                //格納場所か否かを判断
+                if (map[y,x] == 3)
+                {
+                    //格納場所のインデックスを控えておく
+                    goals.Add(new Vector2Int(x, y));
+                }
+            }
+        }
+
+        //要素数はgoals.Countで取得
+        for(int i = 0; i < goals.Count; i++)
+        {
+            GameObject f = field[goals[i].y, goals[i].x];
+            if(f == null || f.tag != "Box")
+            {
+                //一つでも箱がなかったら条件未達成
+                return false;
+            }
+        }
+        //条件未達成でなければ条件達成
+        return true;
+
+
+    }
+
     // Start is called before the first frame update
     void Start()
     {
@@ -64,8 +104,10 @@ bool MoveNumber(int tag, Vector2Int moveFrom, Vector2Int moveTo)
     map = new int[,]//変更。わかりやすく3x5サイズ
         {
             {0,0,0,0,0 },
+            {0,3,0,3,0 },
             {0,0,1,2,0 },
-            {0,2,0,2,0 },
+            {0,2,3,2,0 },
+            {0,0,0,0,0 },
         };
         field = new GameObject
         [
@@ -97,6 +139,16 @@ bool MoveNumber(int tag, Vector2Int moveFrom, Vector2Int moveTo)
                         UnityEngine.Quaternion.identity
                         );
                 }
+                else if (map[y, x] == 3)
+                {
+                    //追加
+                    field[y, x] = Instantiate(
+                        goalPrefab,
+                        new UnityEngine.Vector3(x, map.GetLength(0) - y, 0.01f),
+                        UnityEngine.Quaternion.identity
+                        );
+                }
+
             }
             debugText += "\n";//改行
         }
@@ -147,6 +199,13 @@ bool MoveNumber(int tag, Vector2Int moveFrom, Vector2Int moveTo)
             playerIndexNext.y += 1;
             //移動関数
             MoveNumber(1, playerIndex, playerIndexNext);
+        }
+
+        if (IsCleard())
+        {
+            Debug.Log("clear!");
+            //ゲームオブジェクトのSetActiveメソッドを使い有効化
+            clearText.SetActive(true);
         }
 
     }
