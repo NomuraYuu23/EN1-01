@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
-using UnityEditor.Compilation;
+//using UnityEditor.Compilation;
 using UnityEngine;
 
 public class GameManagerScript : MonoBehaviour
@@ -13,9 +13,26 @@ public class GameManagerScript : MonoBehaviour
 
     public GameObject clearText;
 
+    public GameObject particlePrefab;
+    public int particleMax;
+
     //配列の宣言
     int[,] map;//変更。二次元配列で宣言
     GameObject[,] field;//ゲーム管理用の配列
+
+    GameObject[] particle;//パーティクル
+
+    //パーティクルの生成
+    void particleGeneration(UnityEngine.Vector3 position)
+    {
+        for(int i = 0; i < particle.GetLength(0); i++)
+        {
+            particle[i] = Instantiate(particlePrefab,
+                        position,
+                        UnityEngine.Quaternion.identity);
+        }
+    }
+
 
     //インデックスの取得
     Vector2Int GetPlayerIndex()
@@ -55,7 +72,8 @@ public class GameManagerScript : MonoBehaviour
         field[moveTo.y, moveTo.x] = field[moveFrom.y, moveFrom.x];
         field[moveFrom.y, moveFrom.x] = null;
 
-
+        //パーティクル
+        particleGeneration(field[moveTo.y, moveTo.x].transform.position);
 
 
         return true;
@@ -99,9 +117,11 @@ public class GameManagerScript : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        //ウインドウモード
+        Screen.SetResolution(1920, 1080, false);
 
-    //配列の実態の作成と初期化
-    map = new int[,]//変更。わかりやすく3x5サイズ
+        //配列の実態の作成と初期化
+        map = new int[,]//変更。わかりやすく3x5サイズ
         {
             {0,0,0,0,0 },
             {0,3,0,3,0 },
@@ -114,6 +134,7 @@ public class GameManagerScript : MonoBehaviour
             map.GetLength(0),
             map.GetLength(1)
         ];
+        particle = new GameObject[particleMax];
         string debugText = "";
         //変更。二重for文で二次元配列の情報を出力
         for(int y = 0; y < map.GetLength(0); y++)
