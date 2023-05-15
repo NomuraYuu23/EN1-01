@@ -10,6 +10,7 @@ public class GameManagerScript : MonoBehaviour
     public GameObject playerPrefab;
     public GameObject boxPrefab;
     public GameObject goalPrefab;
+    public GameObject wallPrefab;
 
     public GameObject clearText;
 
@@ -50,13 +51,14 @@ public class GameManagerScript : MonoBehaviour
     }
 
 
-
     //移動
     bool MoveNumber(int tag, Vector2Int moveFrom, Vector2Int moveTo)
     {
         //縦軸横軸の配列外参照をしてないか
         if (moveTo.y < 0 || moveTo.y >= field.GetLength(0)) { return false; }
         if (moveTo.x < 0 || moveTo.x >= field.GetLength(1)) { return false; }
+        //壁を参照してないか
+        if(field[moveTo.y, moveTo.x] != null && field[moveTo.y, moveTo.x].tag == "Wall") { return false; }
 
         //Boxタグを持っていたら再帰処理
         if (field[moveTo.y, moveTo.x] != null && field[moveTo.y, moveTo.x].tag == "Box")
@@ -114,6 +116,12 @@ public class GameManagerScript : MonoBehaviour
 
     }
 
+    //初期化
+    void Initialize()
+    {
+
+    }
+
     // Start is called before the first frame update
     void Start()
     {
@@ -123,11 +131,13 @@ public class GameManagerScript : MonoBehaviour
         //配列の実態の作成と初期化
         map = new int[,]//変更。わかりやすく3x5サイズ
         {
-            {0,0,0,0,0 },
-            {0,3,0,3,0 },
-            {0,0,1,2,0 },
-            {0,2,3,2,0 },
-            {0,0,0,0,0 },
+            {4,4,4,4,4,4,4 },
+            {4,0,0,0,4,0,4 },
+            {4,0,3,0,3,0,4 },
+            {4,0,0,1,2,0,4 },
+            {4,0,2,3,2,0,4 },
+            {4,0,0,0,0,4,4 },
+            {4,4,4,4,4,4,4 },
         };
         field = new GameObject
         [
@@ -166,6 +176,15 @@ public class GameManagerScript : MonoBehaviour
                     field[y, x] = Instantiate(
                         goalPrefab,
                         new UnityEngine.Vector3(x, map.GetLength(0) - y, 0.01f),
+                        UnityEngine.Quaternion.identity
+                        );
+                }
+                else if (map[y, x] == 4)
+                {
+                    //追加
+                    field[y, x] = Instantiate(
+                        wallPrefab,
+                        new UnityEngine.Vector3(x, map.GetLength(0) - y, 0),
                         UnityEngine.Quaternion.identity
                         );
                 }
